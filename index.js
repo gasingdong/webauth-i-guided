@@ -12,6 +12,27 @@ server.use(helmet());
 server.use(express.json());
 server.use(cors());
 
+const restricted = (req, res, next) => {
+  const { username, password } = req.headers;
+
+  if (username && password) {
+    Users.findBy({ username })
+      .first()
+      .then(user => {
+        if (user && bcryptjs.compareSync(password, user.password)) {
+          next();
+        } else {
+          res.status(401).json({ error: 'Invalid credentials.' });
+        }
+      })
+      .catch(err => {
+        res.status(500).json({ error: 'Error processing credentials.' });
+      })
+  } else {
+    res.status(400).json({ error: 'No credentials provided.' });
+  }
+}
+
 server.get('/', (req, res) => {
   res.send("It's alive!");
 });
@@ -48,7 +69,7 @@ server.post('/api/login', (req, res) => {
     });
 });
 
-server.get('/api/users', (req, res) => {
+server.get('/api/users', restricted, (req, res) => {
   Users.find()
     .then(users => {
       res.json(users);
